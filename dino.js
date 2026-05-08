@@ -21,6 +21,11 @@ let dino = {
     height : dinoHeight
 }
 
+// Ducking
+let isDucking = false;
+let dinoDuckHeight = 60;
+let dinoNormalHeight = 94;
+
 //cactus
 let cactusArray = [];
 
@@ -319,9 +324,23 @@ window.onload = async function() {
 
     requestAnimationFrame(update);
     setInterval(placeCactus, 1500); //1500 milliseconds = 1.5 seconds
-    document.addEventListener("keydown", moveDino);
+    
+    // Play start sound once (might be blocked until interaction)
+    sonDebut.play().catch(e => console.log("Audio autoplay blocked, will start on interaction"));
+
+    document.addEventListener("keydown", (e) => {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        moveDino(e);
+    });
     document.addEventListener("keyup", stopJump);
-    board.addEventListener("click", resetGameOnClick);
+    board.addEventListener("click", (e) => {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        resetGameOnClick(e);
+    });
 }
 
 function resetGame() {
@@ -396,12 +415,25 @@ function drawWeather() {
         context.globalAlpha = sunOpacity;
         context.drawImage(sunImg, boardWidth - sunSize - 20, sunY, sunSize, sunSize);
         context.globalAlpha = 1.0;
+    } else if (themeName === "night") {
+        // Dessiner une lune (cercle blanc)
+        context.fillStyle = "white";
+        context.beginPath();
+        context.arc(boardWidth - 50, 40, 20, 0, Math.PI * 2);
+        context.fill();
+        
+        // Ajouter quelques étoiles aléatoires basées sur le score
+        context.fillStyle = "white";
+        for (let i = 0; i < 10; i++) {
+            let x = (i * 113 + score) % boardWidth;
+            let y = (i * 77) % 150;
+            context.fillRect(x, y, 2, 2);
+        }
     }
 }
 
 function update() {
     requestAnimationFrame(update);
-    sonDebut.play();
 
     if (gameOver) {
         return;
@@ -492,13 +524,15 @@ function moveDino(e) {
     if (e.code == "ArrowDown" && dino.y == dinoY) {
         isDucking = true;
         dino.height = dinoDuckHeight;
-        dino.y = boardHeight - dinoDuckHeight;  // Reste au sol
+        dino.y = boardHeight - dinoDuckHeight;
     }
 
-    if (e.code == "ArrowUp") {
-        isDucking = false;
-        dino.height = dinoNormalHeight;
-        dino.y = dinoY;
+    if (e.code == "ArrowUp" || e.code == "Space") {
+        if (isDucking) {
+            isDucking = false;
+            dino.height = dinoNormalHeight;
+            dino.y = dinoY;
+        }
     }
 
 }
@@ -508,6 +542,11 @@ function stopJump(e) {
         if (velocityY < -5) {
             velocityY = -5;
         }
+    }
+    if (e.code == "ArrowDown") {
+        isDucking = false;
+        dino.height = dinoNormalHeight;
+        dino.y = dinoY;
     }
 }
 
@@ -528,14 +567,10 @@ function placeCactus() {
     let placeCactusChance = Math.random(); //0 - 0.9999...
 
     let birdPositions = [
-        boardHeight - 160,  // Haut (saut obligatoire)
-        boardHeight - 80,   // Milieu (saut ou duck)
-        boardHeight - 50    // BAS (duck obligatoire !)
+        boardHeight - 200,  // Haut (on passe dessous)
+        boardHeight - 130,  // Milieu (duck obligatoire)
+        boardHeight - 80    // Bas (saut obligatoire)
     ];
-
-    let isDucking = false;
-    let dinoDuckHeight = 60;  // Hauteur réduite
-    let dinoNormalHeight = 94;
 
     if (placeCactusChance > .90) { 
         cactus.img = cactus3Img;

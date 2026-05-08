@@ -1,79 +1,70 @@
-# Documentation du Jeu Chrome Dino (Clone) - dino.js
+# 🦖 Chrome Dinosaur Game - Projet TP 202
 
-Ce document explique en détail le fonctionnement du code JavaScript du jeu de dinosaure contenu dans le fichier `dino.js`.
+Ce projet est une version améliorée du célèbre jeu du dinosaure de Chrome, intégrant un système de météo dynamique en temps réel, des effets sonores et des mécaniques de jeu avancées (saut, baisse).
 
-## Sommaire
-1. [Configuration et Variables Globales](#1-configuration-et-variables-globales)
-2. [Initialisation (window.onload)](#2-initialisation-windowonload)
-3. [La Boucle de Jeu (update)](#3-la-boucle-de-jeu-update)
-4. [Gestion du Dinosaure et des Sauts](#4-gestion-du-dinosaure-et-des-sauts)
-5. [Système d'Obstacles (Cactus et Oiseaux)](#5-système-dobstacles-cactus-et-oiseaux)
-6. [Collisions et Fin de Jeu](#6-collisions-et-fin-de-jeu)
+## 🚀 Comment lancer le jeu
 
----
+Pour profiter pleinement du jeu (notamment pour les sons et les images qui peuvent être bloqués en ouverture directe de fichier), il est recommandé d'utiliser un serveur local.
 
-## 1. Configuration et Variables Globales
+### Via Terminal (Recommandé)
+Si vous avez Node.js installé, lancez cette commande à la racine du projet :
+```powershell
+npx http-server -p 8080
+```
+Puis ouvrez votre navigateur à l'adresse : `http://localhost:8080`
 
-Le code commence par définir les constantes et les variables d'état du jeu :
-
-- **Le Canvas (Board)** : Définit la taille de la zone de jeu (`1000x350`).
-- **Le Dinosaure** : Contient ses dimensions, sa position initiale et les objets `Image` pour ses animations (course et mort).
-- **Obstacles** : Des arrays et des variables stockent les images et les dimensions des différents types de cactus (petits et grands) et des oiseaux.
-- **Physique** :
-    - `velocityX` : Vitesse de défilement vers la gauche (-8).
-    - `velocityY` : Vitesse verticale actuelle du dinosaure.
-    - `gravity` : Force qui ramène le dinosaure au sol (0.4).
-- **État du Jeu** : `gameOver` (booléen) et `score` (entier).
+### Via Explorateur
+Faites un clic droit sur `index.html` > **Ouvrir avec** > **Votre navigateur**.
 
 ---
 
-## 2. Initialisation (window.onload)
+## 📂 Structure du Projet
 
-Cette fonction s'exécute dès que la page est chargée :
-
-- Elle récupère l'élément Canvas HTML et prépare le contexte de dessin `2d`.
-- Elle crée et définit la source (`src`) de toutes les images nécessaires (Dino, Cactus, Oiseaux, Game Over, Reset).
-- Elle lance la boucle de jeu avec `requestAnimationFrame(update)`.
-- Elle configure un intervalle (`setInterval`) pour générer un nouvel obstacle toutes les 1.5 secondes.
-- Elle ajoute les "listeners" pour le clavier (saut) et la souris (clic sur le bouton reset).
-
----
-
-## 3. La Boucle de Jeu (update)
-
-C'est le cœur du jeu. Elle s'exécute environ 60 fois par seconde.
-
-1. **Nettoyage** : Efface le canvas précédent avec `clearRect`.
-2. **Gravité** : Applique la gravité à `velocityY` et met à jour la position `y` du dinosaure.
-3. **Animation du Dino** : 
-    - Si le dino est en l'air, il affiche l'image fixe.
-    - S'il est au sol, il alterne entre `dino-run1` et `dino-run2` en fonction du score pour simuler la course.
-4. **Gestion des Obstacles** : Parcourt le tableau `cactusArray`, déplace chaque obstacle et le dessine.
-5. **Score** : Incrémente le score et l'affiche en haut à gauche.
+*   `index.html` : Structure de base, canvas du jeu et contrôles météo.
+*   `dino.js` : Cerveau du jeu (logique, physique, météo, boucle de rendu).
+*   `son.js` : Gestionnaire audio (musique, sons de saut, game over).
+*   `dino.css` : Style visuel de la page et des boutons.
+*   `img/` : Dossier contenant tous les sprites (Dino, cactus, oiseaux, soleil, pluie).
+*   `sounds/` : Fichiers audio (.m4a, .wav).
 
 ---
 
-## 4. Gestion du Dinosaure et des Sauts
+## 🛠️ Détails du Code
 
-- **`moveDino(e)`** : Détecte l'appui sur "Espace" ou "Flèche Haut". Si le dino est au sol (`dino.y == dinoY`), on lui donne une impulsion négative (`velocityY = -12`).
-- **Saut Variable (`stopJump`)** : Si le joueur relâche la touche avant la fin du saut, la vitesse ascensionnelle est réduite. Cela permet de faire des petits sauts en tapotant ou des grands sauts en maintenant la touche.
-- **`resetGame()`** : Remet toutes les variables à zéro pour recommencer une partie.
+### 1. `index.html` (La Structure)
+Le fichier définit un élément `<canvas id="board">` où tout le jeu est dessiné. Il inclut également une section `.weather-controls` qui contient les boutons pour forcer manuellement les thèmes météo.
+*   **Scripts** : Les fichiers `son.js` et `dino.js` sont chargés avec l'attribut `defer` pour s'assurer que le HTML est prêt avant l'exécution du code.
+
+### 2. `dino.js` (La Logique)
+C'est le fichier le plus complexe. Voici ses composants clés :
+*   **Boucle `update()`** : Utilise `requestAnimationFrame` pour s'exécuter 60 fois par seconde. Elle gère la gravité, le déplacement des obstacles et la détection de collisions.
+*   **Système de Météo Dynamique** :
+    *   `getLocation()` & `fetchWeather()` : Récupèrent la position GPS de l'utilisateur et interrogent l'API *Open-Meteo* pour connaître le temps qu'il fait.
+    *   `updateTheme()` : Change la couleur du ciel et du sol selon l'heure (Jour/Nuit) ou la météo (Pluie/Orage).
+*   **Animation du Dinosaure** : Alterne entre `dino-run1.png` et `dino-run2.png` toutes les 10 frames pour simuler la course.
+*   **Obstacles (`placeCactus`)** : Génère aléatoirement des petits cactus, des grands cactus ou des oiseaux à différentes hauteurs.
+
+### 3. `son.js` (L'Audio)
+Gère l'ambiance sonore :
+*   **AudioContext** : Utilisé pour générer des sons synthétiques (comme le bip du score ou le saut) sans avoir besoin de fichiers lourds.
+*   **Musique de fond** : Un fichier audio chargé et mis en boucle via `musicJeu.loop = true`.
+*   **Gestion des restrictions** : Comme les navigateurs bloquent le son automatique, une fonction `audioCtx.resume()` est appelée dès la première interaction de l'utilisateur.
 
 ---
 
-## 5. Système d'Obstacles (Cactus et Oiseaux)
+## 🎮 Commandes de Jeu
 
-La fonction `placeCactus()` utilise le hasard (`Math.random()`) pour choisir quel type d'obstacle ajouter :
-
-- **Cactus** : Choisit entre 3 tailles de petits cactus et 3 tailles de grands cactus.
-- **Oiseaux** : Apparaissent à deux hauteurs différentes (nécessitant soit un saut, soit de rester au sol). Ils possèdent une animation de battement d'ailes intégrée dans la boucle `update`.
+*   **ESPACE / FLÈCHE HAUT** : Sauter.
+*   **FLÈCHE BAS** : Se baisser (Ducking) pour passer sous les oiseaux de niveau moyen.
+    *   *Note : Maintenez la touche pour rester baissé.*
+*   **CLIC SUR LE BOUTON RESET** : Recommencer après un Game Over.
 
 ---
 
-## 6. Collisions et Fin de Jeu
+## ✨ Fonctionnalités Premium
+*   **Mode Nuit** : Affichage d'une lune et d'étoiles animées qui défilent avec le score.
+*   **Météo Réelle** : Si vous autorisez la géolocalisation, le ciel du jeu s'adaptera à la météo actuelle de votre ville !
+*   **Animations Fluides** : Transition de saut parabolique et animation de course synchronisée.
 
-- **`detectCollision(a, b)`** : Algorithme classique "AABB" qui vérifie si les rectangles du dinosaure et d'un obstacle se chevauchent.
-- **Game Over** : Si une collision est détectée :
-    - `gameOver` devient `true`.
-    - L'image du dinosaure change pour la version "mort".
-    - Le texte "GAME OVER" et l'icône de réinitialisation sont dessinés au centre du canvas.
+---
+**Auteur** : Projet réalisé dans le cadre du TP 202.
