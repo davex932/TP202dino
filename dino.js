@@ -452,6 +452,10 @@ function update() {
 
         if (detectCollision(dino, cactus)) {
             gameOver = true;
+            sonDebut.pause();
+            sonDebut.currentTime = 0; 
+            sonGameOver.play();
+            musicJeu.pause();
             sonGameOver.play();
             musicJeu.pause();        
     dinoImg.src = "./img/dino-dead.png";
