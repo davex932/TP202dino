@@ -330,6 +330,8 @@ function resetGame() {
     cactusArray = [];
     score = 0;
     gameOver = false;
+    musicJeu.currentTime = 0;
+    musicJeu.play();    
     velocityY = 0;
 }
 
@@ -399,6 +401,8 @@ function drawWeather() {
 
 function update() {
     requestAnimationFrame(update);
+    sonDebut.play();
+
     if (gameOver) {
         return;
     }
@@ -448,7 +452,9 @@ function update() {
 
         if (detectCollision(dino, cactus)) {
             gameOver = true;
-            dinoImg.src = "./img/dino-dead.png";
+            sonGameOver.play();
+            musicJeu.pause();        
+    dinoImg.src = "./img/dino-dead.png";
             dinoImg.onload = function() {
                 context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
             }
@@ -461,6 +467,8 @@ function update() {
     context.fillStyle = currentTheme ? currentTheme.textColor : "black";
     context.font="20px courier";
     score++;
+    if (score == 1) musicJeu.play();
+    if (score % 100 === 0) sonScore();
     context.fillText(score, 5, 20);
 }
 
@@ -475,6 +483,7 @@ function moveDino(e) {
     if ((e.code == "Space" || e.code == "ArrowUp") && dino.y == dinoY) {
         //jump
         velocityY = -12;
+        sonSaut();
     }
     else if (e.code == "ArrowDown" && dino.y == dinoY) {
         //duck
