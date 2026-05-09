@@ -302,19 +302,21 @@ window.onload = async function() {
     updateTheme();
     if (currentTheme) console.log("Theme updated to:", currentTheme.name);
 
-    // Récupérer le nom du joueur stocké
+    } catch (error) {
+        console.error("Weather initialization error:", error);
+    }
+
+    // --- SÉCURITÉ : DEMANDE DU NOM (Toujours exécutée) ---
     const storedPlayerName: string | null = localStorage.getItem("currentPlayerName");
     if (storedPlayerName) {
         currentPlayerName = storedPlayerName;
         nameIsConfigured = true;
     }
 
-    // On force TOUJOURS l'arrêt au démarrage pour demander le nom
+    // Force TOUJOURS l'arrêt au démarrage
     gameOver = true;
     currentScreen = "nameEntry";
-} catch (error) {
-        console.error("Weather initialization error:", error);
-    }
+    // ----------------------------------------------------
 
     context = board.getContext("2d")!; //used for drawing on the board
 

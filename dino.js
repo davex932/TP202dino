@@ -238,19 +238,20 @@ window.onload = function () {
             updateTheme();
             if (currentTheme)
                 console.log("Theme updated to:", currentTheme.name);
-            // Récupérer le nom du joueur stocké
-            const storedPlayerName = localStorage.getItem("currentPlayerName");
-            if (storedPlayerName) {
-                currentPlayerName = storedPlayerName;
-                nameIsConfigured = true;
-            }
-            // On force TOUJOURS l'arrêt au démarrage pour demander le nom
-            gameOver = true;
-            currentScreen = "nameEntry";
         }
         catch (error) {
             console.error("Weather initialization error:", error);
         }
+        // --- SÉCURITÉ : DEMANDE DU NOM (Toujours exécutée) ---
+        const storedPlayerName = localStorage.getItem("currentPlayerName");
+        if (storedPlayerName) {
+            currentPlayerName = storedPlayerName;
+            nameIsConfigured = true;
+        }
+        // Force TOUJOURS l'arrêt au démarrage
+        gameOver = true;
+        currentScreen = "nameEntry";
+        // ----------------------------------------------------
         context = board.getContext("2d"); //used for drawing on the board
         // draw initial dinosaur
         dinoImg = new Image();
