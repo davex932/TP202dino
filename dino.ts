@@ -25,6 +25,7 @@ interface Dino {
     y: number;
     width: number;
     height: number;
+    isDucking: boolean;
 }
 
 interface WeatherData {
@@ -54,12 +55,16 @@ const dinoY: number = boardHeight - dinoHeight;
 let dinoImg: HTMLImageElement;
 let dinoRun1Img: HTMLImageElement;
 let dinoRun2Img: HTMLImageElement;
+let dinoDuck1Img: HTMLImageElement;
+let dinoDuck2Img: HTMLImageElement;
+let dinoDeadImg: HTMLImageElement;
 
 let dino: Dino = {
     x : dinoX,
     y : dinoY,
     width : dinoWidth,
-    height : dinoHeight
+    height : dinoHeight,
+    isDucking: false
 }
 
 // Ducking
@@ -146,8 +151,8 @@ const themes: Themes = {
         name: "sunset"
     },
     night: {
-        skyColor: "#1a2e",      // Bleu nuit
-        groundColor: "#0f0f0f",   // Noir profond
+        skyColor: "#0d1b2a",      // Bleu nuit profond (au lieu de vert)
+        groundColor: "#0a0a0a",   // Presque noir
         textColor: "#e0e0e0",     // Blanc cassé
         name: "night"
     },
@@ -333,6 +338,12 @@ window.onload = async function() {
     dinoRun2Img = new Image();
     dinoRun2Img.src = "./img/dino-run2.png";
 
+    dinoDuck1Img = new Image();
+    dinoDuck1Img.src = "./img/dino-duck1.png";
+
+    dinoDuck2Img = new Image();
+    dinoDuck2Img.src = "./img/dino-duck2.png";
+
     cactus1Img = new Image();
     cactus1Img.src = "./img/cactus1.png";
 
@@ -395,9 +406,14 @@ window.onload = async function() {
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
+        if (e.code === "ArrowDown") {
+            dino.isDucking = true;
+        }
         moveDino(e);
     });
-    document.addEventListener("keyup", stopJump);
+    document.addEventListener("keyup", (e: KeyboardEvent) => {
+        stopJump(e);
+    });
     board.addEventListener("click", (e: MouseEvent) => {
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
@@ -531,26 +547,44 @@ function update(): void {
     // Draw weather effects
     drawWeather();
 
-    // dino
+    // --- PHYSIQUE DU DINO ---
     velocityY += gravity;
-    dino.y = Math.min(dino.y + velocityY, dinoY); //apply gravity to current dino.y, making sure it doesn't exceed the ground
+    dino.y += velocityY;
+
+    // Déterminer la hauteur et le sol selon l'état
+    if (dino.isDucking && !gameOver) {
+        dino.height = dinoDuckHeight;
+    } else {
+        dino.height = dinoNormalHeight;
+    }
+
+    const currentGroundY = boardHeight - dino.height;
+    if (dino.y > currentGroundY) {
+        dino.y = currentGroundY;
+        velocityY = 0;
+    }
     
-    // Animation de course
+    // --- ANIMATION ---
     let currentDinoImg: HTMLImageElement = dinoImg;
     
-    if (dino.y < dinoY) {
-        // Optionnel : vous pourriez utiliser dino-jump.png ici si vous voulez
-        currentDinoImg = dinoImg; 
+    if (gameOver) {
+        // Optionnel : dinoDeadImg
+    } else if (dino.y < currentGroundY) {
+        currentDinoImg = dinoImg; // Saut
     } else {
-        // Alterne toutes les 10 frames environ
-        if (Math.floor(score / 10) % 2 == 0) {
-            currentDinoImg = dinoRun1Img;
+        const frame = Math.floor(score / 5) % 2;
+        if (dino.isDucking) {
+            currentDinoImg = (frame === 0) ? dinoDuck1Img : dinoDuck2Img;
         } else {
-            currentDinoImg = dinoRun2Img;
+            currentDinoImg = (frame === 0) ? dinoRun1Img : dinoRun2Img;
         }
     }
 
-    context.drawImage(currentDinoImg, dino.x, dino.y, dino.width, dino.height);
+    if (currentDinoImg && currentDinoImg.complete) {
+        // Largeur dynamique : 118px si couché, sinon 88px
+        const drawWidth = (dino.isDucking && !gameOver) ? 118 : dino.width;
+        context.drawImage(currentDinoImg, dino.x, dino.y, drawWidth, dino.height);
+    }
 
     // cactus
     for (let i = 0; i < cactusArray.length; i++) {
@@ -655,9 +689,7 @@ function stopJump(e: KeyboardEvent): void {
         }
     }
     if (e.code == "ArrowDown") {
-        isDucking = false;
-        dino.height = dinoNormalHeight;
-        dino.y = dinoY;
+        dino.isDucking = false;
     }
 }
 
