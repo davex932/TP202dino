@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "ESNext",
+    "lib": ["DOM", "ESNext"],
+    "strict": false,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "files": ["dino.ts", "son.ts"]
+}

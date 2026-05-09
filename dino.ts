@@ -1,0 +1,671 @@
+
+// Interfaces
+interface Theme {
+    skyColor: string;
+    groundColor: string;
+    textColor: string;
+    name: string;
+}
+
+interface Themes {
+    [key: string]: Theme;
+}
+
+interface Cactus {
+    img: HTMLImageElement | null;
+    x: number;
+    y: number;
+    width: number | null;
+    height: number;
+    type?: string;
+}
+
+interface Dino {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+interface WeatherData {
+    weathercode: number;
+    [key: string]: any;
+}
+
+// These are defined in son.ts (global scope)
+// No need to declare them here as TS sees them in the same project
+
+//board
+let board: HTMLCanvasElement;
+let boardWidth: number = 1000;
+let boardHeight: number = 350;
+let context: CanvasRenderingContext2D;
+
+//dino
+let dinoWidth: number = 88;
+let dinoHeight: number = 94;
+let dinoX: number = 50;
+let dinoY: number = boardHeight - dinoHeight;
+let dinoImg: HTMLImageElement;
+let dinoRun1Img: HTMLImageElement;
+let dinoRun2Img: HTMLImageElement;
+
+let dino: Dino = {
+    x : dinoX,
+    y : dinoY,
+    width : dinoWidth,
+    height : dinoHeight
+}
+
+// Ducking
+let isDucking: boolean = false;
+let dinoDuckHeight: number = 60;
+let dinoNormalHeight: number = 94;
+
+//cactus
+let cactusArray: Cactus[] = [];
+
+let cactus1Width: number = 34;
+let cactus2Width: number = 69;
+let cactus3Width: number = 102;
+
+let cactusHeight: number = 70;
+let cactusX: number = 1000;
+let cactusY: number = boardHeight - cactusHeight;
+
+let cactus1Img: HTMLImageElement;
+let cactus2Img: HTMLImageElement;
+let cactus3Img: HTMLImageElement;
+
+let bigCactus1Width: number = 50;
+let bigCactus2Width: number = 98;
+let bigCactus3Width: number = 150;
+let bigCactusHeight: number = 98;
+let bigCactusY: number = boardHeight - bigCactusHeight;
+
+let bigCactus1Img: HTMLImageElement;
+let bigCactus2Img: HTMLImageElement;
+let bigCactus3Img: HTMLImageElement;
+
+let birdWidth: number = 84;
+let birdHeight: number = 60;
+
+let bird1Img: HTMLImageElement;
+let bird2Img: HTMLImageElement;
+
+let gameOverImg: HTMLImageElement;
+let resetImg: HTMLImageElement;
+
+//weather images
+let sunImg: HTMLImageElement;
+let rainCloudImg: HTMLImageElement;
+let rainCloudV1Img: HTMLImageElement;
+let rainDrops1Img: HTMLImageElement;
+let rainDrops2Img: HTMLImageElement;
+let rainDrops3Img: HTMLImageElement;
+let rainDrops4Img: HTMLImageElement;
+let rainFrame: number = 0;
+
+//physics
+let velocityX: number = -8; //cactus moving left speed
+let velocityY: number = 0;
+let gravity: number = .4;
+
+let gameOver: boolean = false;
+let score: number = 0;
+
+// Time-based theme system
+let currentTheme: Theme | null = null;
+
+const themes: Themes = {
+    day: {
+        skyColor: "#87CEEB",      // Bleu ciel
+        groundColor: "#1a1a1a",  // Noir (bordure)
+        textColor: "black",
+        name: "day"
+    },
+    sunset: {
+        skyColor: "#FF6B35",      // Orange/Rouge coucher de soleil
+        groundColor: "#4a1a1a",  // Rouge foncé
+        textColor: "#2d1b1b",
+        name: "sunset"
+    },
+    night: {
+        skyColor: "#1a2e",      // Bleu nuit
+        groundColor: "#0f0f0f",   // Noir profond
+        textColor: "#e0e0e0",     // Blanc cassé
+        name: "night"
+    },
+    rain: {
+        skyColor: "#4a5568",      // Gris bleuté
+        groundColor: "#2d3748",   // Gris foncé
+        textColor: "#e2e8f0",     // Blanc
+        name: "rain"
+    },
+    storm: {
+        skyColor: "#1a202c",      // Gris très foncé
+        groundColor: "#171923",   // Presque noir
+        textColor: "#f7fafc",     // Blanc
+        name: "storm"
+    },
+};
+
+// Weather data storage
+let currentWeather: WeatherData | null = null;
+let forcedWeatherTheme: Theme | null = null; // Pour simulation manuelle
+
+// Simulation functions (appelées par les boutons HTML)
+function forceWeatherTheme(themeName: string): void {
+    if (themes[themeName]) {
+        forcedWeatherTheme = themes[themeName]!;
+        currentTheme = forcedWeatherTheme;
+        updateTheme();
+        console.log("Weather forced to:", themeName);
+    }
+}
+
+function restoreAutoWeather(): void {
+    forcedWeatherTheme = null;
+    updateTheme(); // Retourne à la météo réelle ou heure
+    console.log("Weather restored to auto mode");
+}
+
+// Default location (Yaoundé, Cameroon)
+const DEFAULT_LAT: number = 3.8480;
+const DEFAULT_LON: number = 11.5021;
+
+function getLocation(): Promise<{lat: number, lon: number}> {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            console.log("Geolocation not supported, using default location");
+            resolve({ lat: DEFAULT_LAT, lon: DEFAULT_LON });
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                });
+            },
+            (error) => {
+                console.log("Geolocation error:", error.message);
+                console.log("Using default location");
+                resolve({ lat: DEFAULT_LAT, lon: DEFAULT_LON });
+            }
+        );
+    });
+}
+
+async function fetchWeather(lat: number, lon: number): Promise<WeatherData | null> {
+    try {
+        const url: string = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+        const response: Response = await fetch(url);
+        const data: any = await response.json();
+        
+        currentWeather = data.current_weather;
+        console.log("Weather:", currentWeather);
+        return currentWeather;
+    } catch (error) {
+        console.error("Weather fetch error:", error);
+        return null;
+    }
+}
+
+function getWeatherTheme(): Theme | null {
+    if (!currentWeather) return null;
+    
+    const code: number = currentWeather.weathercode;
+    
+    // WMO Weather interpretation codes (WW)
+    // 0 = Clear sky
+    // 1, 2, 3 = Partly cloudy
+    // 45, 48 = Fog
+    // 51-55 = Drizzle
+    // 61-65 = Rain
+    // 71-77 = Snow
+    // 80-82 = Rain showers
+    // 95-99 = Thunderstorm
+    
+    if (code >= 95) return themes["storm"] || null;           // Orage
+    if (code >= 80 || code >= 61) return themes["rain"] || null;  // Pluie
+    
+    return null; // Pas de météo spéciale, utiliser heure
+}
+
+function getTimeTheme(): Theme {
+    const hour: number = new Date().getHours();
+    // Nuit : 20h - 6h
+    // Coucher de soleil : 18h - 20h
+    // Jour : 6h - 18h
+    if (hour >= 20 || hour < 6) {
+        return themes["night"]!;
+    } else if (hour >= 18 && hour < 20) {
+        return themes["sunset"]!;
+    } else {
+        return themes["day"]!;
+    }
+}
+
+function updateTheme(): void {
+    // Priorité : Forcé > Météo réelle > Heure
+    if (forcedWeatherTheme) {
+        currentTheme = forcedWeatherTheme;
+    } else {
+        const weatherTheme: Theme | null = getWeatherTheme();
+        const timeTheme: Theme = getTimeTheme();
+        // Si météo spéciale (pluie, orage, neige), l'utiliser
+        // Sinon, utiliser le thème basé sur l'heure
+        currentTheme = weatherTheme || timeTheme;
+    }
+    
+    if (currentTheme && board) {
+        board.style.backgroundColor = currentTheme.skyColor;
+        board.style.borderBottomColor = currentTheme.groundColor;
+    }
+}
+
+window.onload = async function() {
+    board = document.getElementById("board") as HTMLCanvasElement;
+    board.height = boardHeight;
+    board.width = boardWidth;
+
+    // Initialize theme with time (fallback)
+    updateTheme();
+    
+    // Get location and weather
+    try {
+        console.log("Getting location...");
+        const location = await getLocation();
+        console.log("Location:", location.lat, location.lon);
+        
+        console.log("Fetching weather...");
+        await fetchWeather(location.lat, location.lon);
+        
+        // Update theme with weather priority
+        updateTheme();
+        if (currentTheme) console.log("Theme updated to:", currentTheme.name);
+    } catch (error) {
+        console.error("Weather initialization error:", error);
+    }
+
+    context = board.getContext("2d")!; //used for drawing on the board
+
+    //draw initial dinosaur
+    dinoImg = new Image();
+    dinoImg.src = "./img/dino.png";
+    dinoImg.onload = function() {
+        context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+    }
+
+    dinoRun1Img = new Image();
+    dinoRun1Img.src = "./img/dino-run1.png";
+
+    dinoRun2Img = new Image();
+    dinoRun2Img.src = "./img/dino-run2.png";
+
+    cactus1Img = new Image();
+    cactus1Img.src = "./img/cactus1.png";
+
+    cactus2Img = new Image();
+    cactus2Img.src = "./img/cactus2.png";
+
+    cactus3Img = new Image();
+    cactus3Img.src = "./img/cactus3.png";
+
+    bigCactus1Img = new Image();
+    bigCactus1Img.src = "./img/big-cactus1.png";
+
+    bigCactus2Img = new Image();
+    bigCactus2Img.src = "./img/big-cactus2.png";
+
+    bigCactus3Img = new Image();
+    bigCactus3Img.src = "./img/big-cactus3.png";
+
+    bird1Img = new Image();
+    bird1Img.src = "./img/bird1.png";
+
+    bird2Img = new Image();
+    bird2Img.src = "./img/bird2.png";
+
+    gameOverImg = new Image();
+    gameOverImg.src = "./img/game-over.png";
+
+    resetImg = new Image();
+    resetImg.src = "./img/reset.png";
+
+    // Load weather images
+    sunImg = new Image();
+    sunImg.src = "./img/sun.png";
+    
+    rainCloudImg = new Image();
+    rainCloudImg.src = "./img/rain.png";
+    
+    rainCloudV1Img = new Image();
+    rainCloudV1Img.src = "./img/rain (1).png";
+    
+    rainDrops1Img = new Image();
+    rainDrops1Img.src = "./img/rain_drops-01.png";
+    
+    rainDrops2Img = new Image();
+    rainDrops2Img.src = "./img/rain_drops-02.png";
+    
+    rainDrops3Img = new Image();
+    rainDrops3Img.src = "./img/rain_drops-03.png";
+    
+    rainDrops4Img = new Image();
+    rainDrops4Img.src = "./img/rain_drops-04.png";
+
+    requestAnimationFrame(update);
+    setInterval(placeCactus, 1500); //1500 milliseconds = 1.5 seconds
+    
+    // Play start sound once (might be blocked until interaction)
+    sonDebut.play().catch(e => console.log("Audio autoplay blocked, will start on interaction"));
+
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        moveDino(e);
+    });
+    document.addEventListener("keyup", stopJump);
+    board.addEventListener("click", (e: MouseEvent) => {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        resetGameOnClick(e);
+    });
+}
+
+function resetGame(): void {
+    dino.y = dinoY;
+    dinoImg.src = "./img/dino.png";
+    cactusArray = [];
+    score = 0;
+    gameOver = false;
+    musicJeu.currentTime = 0;
+    musicJeu.play();    
+    velocityY = 0;
+}
+
+function resetGameOnClick(e: MouseEvent): void {
+    if (gameOver) {
+        let rect: DOMRect = board.getBoundingClientRect();
+        let mouseX: number = e.clientX - rect.left;
+        let mouseY: number = e.clientY - rect.top;
+
+        let resetX: number = boardWidth / 2 - 36;
+        let resetY: number = boardHeight / 2 + 10;
+        let resetW: number = 72;
+        let resetH: number = 64;
+
+        if (mouseX >= resetX && mouseX <= resetX + resetW &&
+            mouseY >= resetY && mouseY <= resetY + resetH) {
+            resetGame();
+        }
+    }
+}
+
+function drawWeather(): void {
+    if (!currentTheme) return;
+    
+    // Animation des gouttes de pluie (toutes les 8 frames)
+    rainFrame = Math.floor(score / 8) % 4;
+    let currentRainDrops: HTMLImageElement;
+    switch(rainFrame) {
+        case 0: currentRainDrops = rainDrops1Img; break;
+        case 1: currentRainDrops = rainDrops2Img; break;
+        case 2: currentRainDrops = rainDrops3Img; break;
+        case 3: currentRainDrops = rainDrops4Img; break;
+        default: currentRainDrops = rainDrops1Img;
+    }
+    
+    const themeName: string = currentTheme.name;
+    
+    // Affichage selon la météo
+    if (themeName === "rain" || themeName === "storm") {
+        // Nuage de pluie (transparent pour rain, plus opaque pour storm)
+        let cloudOpacity: number = themeName === "storm" ? 0.9 : 0.6;
+        context.globalAlpha = cloudOpacity;
+        context.drawImage(rainCloudV1Img, boardWidth - 200, 20, 180, 100);
+        context.globalAlpha = 1.0;
+        
+        // Gouttes de pluie animées (commence plus haut à y=20)
+        context.drawImage(currentRainDrops, 0, 20, boardWidth, boardHeight - 20);
+        
+    } else if (themeName === "day" || themeName === "sunset") {
+        // Soleil avec taille et opacité variables
+        let sunSize: number, sunOpacity: number, sunY: number;
+        
+        if (themeName === "day") {
+            sunSize = 80;
+            sunOpacity = 1.0;
+            sunY = 30;
+        } else { // sunset
+            sunSize = 100; // Plus gros au coucher
+            sunOpacity = 0.7; // Plus tamisé
+            sunY = 80; // Plus bas
+        }
+        
+        context.globalAlpha = sunOpacity;
+        context.drawImage(sunImg, boardWidth - sunSize - 20, sunY, sunSize, sunSize);
+        context.globalAlpha = 1.0;
+    } else if (themeName === "night") {
+        // Dessiner une lune (cercle blanc)
+        context.fillStyle = "white";
+        context.beginPath();
+        context.arc(boardWidth - 50, 40, 20, 0, Math.PI * 2);
+        context.fill();
+        
+        // Ajouter quelques étoiles aléatoires basées sur le score
+        context.fillStyle = "white";
+        for (let i = 0; i < 10; i++) {
+            let x: number = (i * 113 + score) % boardWidth;
+            let y: number = (i * 77) % 150;
+            context.fillRect(x, y, 2, 2);
+        }
+    }
+}
+
+function update(): void {
+    requestAnimationFrame(update);
+
+    if (gameOver) {
+        return;
+    }
+    context.clearRect(0, 0, board.width, board.height);
+    
+    // Draw weather effects
+    drawWeather();
+
+    //dino
+    velocityY += gravity;
+    dino.y = Math.min(dino.y + velocityY, dinoY); //apply gravity to current dino.y, making sure it doesn't exceed the ground
+    
+    // Animation de course
+    let currentDinoImg: HTMLImageElement = dinoImg;
+    if (!gameOver) {
+        if (dino.y < dinoY) {
+            // Optionnel : vous pourriez utiliser dino-jump.png ici si vous voulez
+            currentDinoImg = dinoImg; 
+        } else {
+            // Alterne toutes les 10 frames environ
+            if (Math.floor(score / 10) % 2 == 0) {
+                currentDinoImg = dinoRun1Img;
+            } else {
+                currentDinoImg = dinoRun2Img;
+            }
+        }
+    } else {
+        currentDinoImg = dinoImg; // dino-dead est déjà géré par dinoImg.src dans la collision
+    }
+
+    context.drawImage(currentDinoImg, dino.x, dino.y, dino.width, dino.height);
+
+    //cactus
+    for (let i = 0; i < cactusArray.length; i++) {
+        let cactus: Cactus = cactusArray[i]!;
+        cactus.x += velocityX;
+
+        if (cactus.type === "bird") {
+            if (Math.floor(score / 15) % 2 === 0) {
+                cactus.img = bird1Img;
+            } else {
+                cactus.img = bird2Img;
+            }
+        }
+
+        if (cactus.img) {
+            context.drawImage(cactus.img, cactus.x, cactus.y, cactus.width!, cactus.height);
+        }
+
+        if (detectCollision(dino, cactus)) {
+            gameOver = true;
+            sonGameOver.play();
+            musicJeu.pause();        
+            dinoImg.src = "./img/dino-dead.png";
+            dinoImg.onload = function() {
+                context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+            }
+            context.drawImage(gameOverImg, boardWidth / 2 - 191, boardHeight / 2 - 30, 382, 21);
+            context.drawImage(resetImg, boardWidth / 2 - 36, boardHeight / 2 + 10, 72, 64);
+        }
+    }
+
+    //score
+    context.fillStyle = currentTheme ? currentTheme.textColor : "black";
+    context.font="20px courier";
+    score++;
+    if (score == 1) musicJeu.play();
+    if (score % 100 === 0) sonScore();
+    context.fillText(score.toString(), 5, 20);
+}
+
+function moveDino(e: KeyboardEvent): void {
+    if (gameOver) {
+        if (e.code == "Space" || e.code == "ArrowUp") {
+            resetGame();
+        }
+        return;
+    }
+
+    if ((e.code == "Space" || e.code == "ArrowUp") && dino.y == dinoY) {
+        //jump
+        velocityY = -12;
+        sonSaut();
+    }
+    else if (e.code == "ArrowDown" && dino.y == dinoY) {
+        //duck
+    }
+
+    if (e.code == "ArrowDown" && dino.y == dinoY) {
+        isDucking = true;
+        dino.height = dinoDuckHeight;
+        dino.y = boardHeight - dinoDuckHeight;
+    }
+
+    if (e.code == "ArrowUp" || e.code == "Space") {
+        if (isDucking) {
+            isDucking = false;
+            dino.height = dinoNormalHeight;
+            dino.y = dinoY;
+        }
+    }
+
+}
+
+function stopJump(e: KeyboardEvent): void {
+    if (e.code == "Space" || e.code == "ArrowUp") {
+        if (velocityY < -5) {
+            velocityY = -5;
+        }
+    }
+    if (e.code == "ArrowDown") {
+        isDucking = false;
+        dino.height = dinoNormalHeight;
+        dino.y = dinoY;
+    }
+}
+
+function placeCactus(): void {
+    if (gameOver) {
+        return;
+    }
+
+    //place cactus
+    let cactus: Cactus = {
+        img : null,
+        x : cactusX,
+        y : cactusY,
+        width : null,
+        height: cactusHeight
+    }
+
+    let placeCactusChance: number = Math.random(); //0 - 0.9999...
+
+    let birdPositions: number[] = [
+        boardHeight - 200,  // Haut (on passe dessous)
+        boardHeight - 130,  // Milieu (duck obligatoire)
+        boardHeight - 80    // Bas (saut obligatoire)
+    ];
+
+    if (placeCactusChance > .90) { 
+        cactus.img = cactus3Img;
+        cactus.width = cactus3Width;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .80) { 
+        cactus.img = cactus2Img;
+        cactus.width = cactus2Width;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .70) { 
+        cactus.img = cactus1Img;
+        cactus.width = cactus1Width;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .55) { // big cactus
+        cactus.img = bigCactus3Img;
+        cactus.width = bigCactus3Width;
+        cactus.height = bigCactusHeight;
+        cactus.y = bigCactusY;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .40) { // big cactus
+        cactus.img = bigCactus2Img;
+        cactus.width = bigCactus2Width;
+        cactus.height = bigCactusHeight;
+        cactus.y = bigCactusY;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .25) { // big cactus
+        cactus.img = bigCactus1Img;
+        cactus.width = bigCactus1Width;
+        cactus.height = bigCactusHeight;
+        cactus.y = bigCactusY;
+        cactusArray.push(cactus);
+    }
+    else if (placeCactusChance > .10) { // bird
+        cactus.img = bird1Img;
+        cactus.type = "bird";
+        cactus.width = birdWidth;
+        cactus.height = birdHeight;
+        
+        cactus.y = birdPositions[Math.floor(Math.random() * birdPositions.length)]!;
+        
+        cactusArray.push(cactus);
+    }
+
+    if (cactusArray.length > 5) {
+        cactusArray.shift(); //remove the first element from the array so that the array doesn't constantly grow
+    }
+}
+
+function detectCollision(a: Dino, b: Cactus): boolean {
+    let margin: number = 5;
+    return a.x < b.x + (b.width || 0) - margin &&   //a's top left corner doesn't reach b's top right corner
+           a.x + a.width > b.x + margin &&   //a's top right corner passes b's top left corner
+           a.y < b.y + b.height - margin &&  //a's top left corner doesn't reach b's bottom left corner
+           a.y + a.height > b.y + margin;    //a's bottom left corner passes b's top left corner
+}
