@@ -1,0 +1,25 @@
+{
+  "name": "tp202dino",
+  "version": "1.0.0",
+  "description": "Ce document explique en détail le fonctionnement du code JavaScript du jeu de dinosaure contenu dans le fichier `dino.js`.",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davex932/TP202dino.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/davex932/TP202dino/issues"
+  },
+  "homepage": "https://github.com/davex932/TP202dino#readme",
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
